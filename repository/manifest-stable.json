@@ -9,12 +9,20 @@
         "imageUrl": "",
         "versions": [
             {
-                "version": "1.0.0.0",
+                "version": "10.7.0.0",
                 "changelog": "Initial working commit.",
                 "targetAbi": "10.7.0.0",
-                "sourceUrl": "https://repo.jellyfin.org/releases/plugin/auto-organize/auto-organize_12.0.0.0.zip",
-                "checksum": "1a1b08719718a38a8cc402565547866e",
-                "timestamp": "2022-01-08T17:21:56Z"
+                "sourceUrl": "https://benlar.se/jellyfin-repo/MovieSubtitleSorter-1.0.0.0.zip",
+                "checksum": "cbf6bd9479fe3948004a506fc084f4ee",
+                "timestamp": "2022-05-08T17:21:56Z"
+            },
+            {
+                "version": "10.8.0.0",
+                "changelog": "Initial working commit.",
+                "targetAbi": "10.8.0.0",
+                "sourceUrl": "https://benlar.se/jellyfin-repo/MovieSubtitleSorter-10.8.0.0.zip",
+                "checksum": "027537dffb9779333181931ed3d7a64d",
+                "timestamp": "2022-05-08T17:21:56Z"
             }
         ]
     }

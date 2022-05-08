@@ -75,7 +75,7 @@ namespace Jellyfin.Plugin.SubtitleFixer
             _namingOptions = new NamingOptions();
         }
 
-        Task IScheduledTask.Execute(CancellationToken cancellationToken, IProgress<double> progress)
+        Task IScheduledTask.ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
         {
             int SubtitlesFixed = 0;
 
@@ -171,7 +171,7 @@ namespace Jellyfin.Plugin.SubtitleFixer
             
             if (!_libraryManager.IsScanRunning)
             {
-                _libraryManager.QueueLibraryScan();
+                _libraryMonitor.Start();
             }
 
             _logger.LogInformation("Number of new subtitles created: {0}", SubtitlesFixed); 
