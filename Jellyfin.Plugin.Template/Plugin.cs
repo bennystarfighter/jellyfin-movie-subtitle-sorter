@@ -27,7 +27,7 @@ namespace Jellyfin.Plugin.SubtitleFixer
 
         public override Guid Id => Guid.Parse("786e0827-ed4b-4cbc-870b-12c186f47894");
 
-        public override string Description => "Looks for through all MOVIE libraries for subtitles hidden in subfolders and copies them with a working name.";
+        public override string Description => "Looks through all MOVIE libraries for subtitles hidden in subfolders and copies them with a working name.";
 
         public Plugin(IApplicationPaths applicationPaths, IXmlSerializer xmlSerializer) : base(applicationPaths, xmlSerializer)
         {
@@ -43,7 +43,7 @@ namespace Jellyfin.Plugin.SubtitleFixer
 
         string IScheduledTask.Key { get { return "SubtitleFixerAutoSort"; } }
 
-        string IScheduledTask.Description { get { return "Looks for through all MOVIE libraries for subtitles hidden in subfolders and copies them with a working name."; } }
+        string IScheduledTask.Description { get { return "Looks through all MOVIE libraries for subtitles hidden in subfolders and copies them with a working name."; } }
 
         string IScheduledTask.Category { get { return "Library"; } }
 
