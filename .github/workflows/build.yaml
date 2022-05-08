@@ -4,12 +4,12 @@ on:
   workflow_call:
     inputs:
       dotnet-version:
-        required: false
+        required: true
         default: "5.0.x"
         description: "The .NET version to setup for the build"
         type: string
       dotnet-target:
-        required: false
+        required: true
         default: "net5.0"
         description: "The .NET target to set for JPRM"
         type: string
