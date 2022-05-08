@@ -2,6 +2,7 @@ using MediaBrowser.Model.Plugins;
 
 namespace Jellyfin.Plugin.Template.Configuration
 {
+
     public enum SomeOptions
     {
         OneOption,
@@ -11,6 +12,7 @@ namespace Jellyfin.Plugin.Template.Configuration
     public class PluginConfiguration : BasePluginConfiguration
     {
         // store configurable settings your plugin might need
+        /*
         public bool TrueFalseSetting { get; set; }
         public int AnInteger { get; set; }
         public string AString { get; set; }
@@ -24,5 +26,6 @@ namespace Jellyfin.Plugin.Template.Configuration
             AnInteger = 2;
             AString = "string";
         }
+        */
     }
 }
