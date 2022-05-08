@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Jellyfin.Plugin.Template": {
+      "commandName": "Project",
+      "workingDirectory": "A:\\dev\\jellyfin-movie-subtitle-sorter\\debug-server\\jellyfin_10.7.7"
+    }
+  }
+}
