@@ -3,10 +3,10 @@ name: "Movie subtitle sorter"
 guid: "786e0827-ed4b-4cbc-870b-12c186f47894"
 version: "1.0.0.0"
 targetAbi: "10.7.0.0"
-framework: "net5.0"
-overview: "Short description about your plugin"
+framework: "net6.0"
+overview: "Copies subtitles from subfolders to movie folder."
 description: >
-  Looks for through all MOVIE libraries for subtitles hidden in subfolders and copies them with a working name.
+  Looks through all MOVIE libraries for subtitles hidden in subfolders and copies them with a working name.
 category: "Library"
 owner: "BennyStarfighter"
 artifacts:
