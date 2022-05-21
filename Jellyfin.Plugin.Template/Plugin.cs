@@ -5,19 +5,18 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Emby.Naming.Common;
-using Emby.Naming.Video;
 using Jellyfin.Plugin.Template.Configuration;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Providers;
-using MediaBrowser.Model.Entities;
+using MediaBrowser.Controller.Entities;
 using MediaBrowser.Model.IO;
-using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
 using MediaBrowser.Model.Tasks;
 using Microsoft.Extensions.Logging;
-
+using MediaBrowser.Model.Querying;
+using Jellyfin.Data.Enums;
 
 namespace Jellyfin.Plugin.SubtitleFixer
 {
@@ -27,7 +26,7 @@ namespace Jellyfin.Plugin.SubtitleFixer
 
         public override Guid Id => Guid.Parse("786e0827-ed4b-4cbc-870b-12c186f47894");
 
-        public override string Description => "Looks through all MOVIE libraries for subtitles hidden in subfolders and copies them with a working name.";
+        public override string Description => "Looks through all movie libraries for subtitles hidden in subfolders and copies them with a working name.";
 
         public Plugin(IApplicationPaths applicationPaths, IXmlSerializer xmlSerializer) : base(applicationPaths, xmlSerializer)
         {
@@ -77,105 +76,56 @@ namespace Jellyfin.Plugin.SubtitleFixer
 
         Task IScheduledTask.ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
         {
-            int SubtitlesFixed = 0;
-
-            var AllLibraries = _libraryManager.GetVirtualFolders();
-
-            List<VirtualFolderInfo> MovieLibraries = new List<VirtualFolderInfo>();
-
-            foreach (var library in AllLibraries)
+            List<MediaBrowser.Controller.Entities.Movies.Movie> movies = _libraryManager.GetItemList(new InternalItemsQuery
             {
-                if (library.CollectionType == CollectionTypeOptions.Movies)
+                IncludeItemTypes = new[] { BaseItemKind.Movie },
+                IsVirtualItem = false,
+                OrderBy = new List<ValueTuple<string, SortOrder>>
                 {
-                    MovieLibraries.Add(library);
-                    _logger.Log(LogLevel.Information, "Movie libraries: {0}", library.Name);
-                }
-            }
+                    new ValueTuple<string, SortOrder>(ItemSortBy.SortName, SortOrder.Ascending)
+                },
+                Recursive = true,
+                HasTmdbId = true
+            },false).Select(m => m as MediaBrowser.Controller.Entities.Movies.Movie).ToList();
 
-            foreach (var library in MovieLibraries)
+            int MoviesFound = movies.Count;
+            int CompletedCount = 0;
+            _logger.LogInformation("Found [{0}] movies", MoviesFound);
+
+
+            foreach (var movie in movies)
             {
-                foreach (var libraryLocation in library.Locations)
+                foreach (var subFolder in System.IO.Directory.GetDirectories(System.IO.Path.GetDirectoryName(movie.Path)))
                 {
-                    _logger.LogDebug("Checking librabry location: {0}", libraryLocation);
-                    _logger.LogDebug("{0} subfolders: {0}", library.Name, System.IO.Directory.GetDirectories(libraryLocation));
-
-                    foreach (var movieFolder in System.IO.Directory.GetDirectories(libraryLocation))
+                    foreach (var file in System.IO.Directory.GetFiles(subFolder))
                     {
-                        _logger.LogDebug("Checking folder: {0}", movieFolder);
-                        bool foundMovieFile = false;
-                        string movieFilePath = "";
-                        foreach (var file in System.IO.Directory.GetFiles(movieFolder))
+                        if (new string[] { ".ass", ".srt", ".ssa", ".sub", ".idx", ".vtt" }.Contains(System.IO.Path.GetExtension(file).ToLower()))
                         {
-                            _logger.LogDebug("Checking file: {0}", file);
-                            _logger.LogDebug("Extension: {0}", System.IO.Path.GetExtension(file).ToLower());
-                            try
+                            string newSubFilePath = RemoveExtensionFromPath(System.IO.Path.GetFullPath(movie.Path), System.IO.Path.GetExtension(movie.Path)) + "." + System.IO.Path.GetFileName(file);
+                            if (!System.IO.File.Exists(newSubFilePath))
                             {
-                                if (new string[] { ".mkv", ".mp4", ".webm" }.Contains(System.IO.Path.GetExtension(file).ToLower()))
+                                try
                                 {
-                                    foundMovieFile = true;
-                                    movieFilePath = file;
-                                    _logger.LogDebug("Is a movie: {0}", file);
-                                    break;
+                                    System.IO.File.Copy(file, newSubFilePath);
                                 }
-                                else
+                                catch (Exception ex)
                                 {
-                                    _logger.LogDebug("Not a movie: {0}", file);
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                _logger.LogError(ex, "Error checking if file is video {0}", file);
-                            }
-                        }
-
-                        if (foundMovieFile)
-                        {
-                            _logger.LogDebug("Found movie: {0}", movieFilePath);
-
-                            foreach (var subFolder in System.IO.Directory.GetDirectories(movieFolder))
-                            {
-                                foreach (var file in System.IO.Directory.GetFiles(subFolder))
-                                {
-                                    if (new string[] { ".ass", ".srt", ".ssa", ".sub", ".idx", ".vtt" }.Contains(System.IO.Path.GetExtension(file).ToLower()))
-                                    {
-                                        _logger.LogDebug("Found subtitle file: {0}", file);
-                                        string newSubFilePath = RemoveExtensionFromPath(System.IO.Path.GetFullPath(movieFilePath), System.IO.Path.GetExtension(movieFilePath)) + "." + System.IO.Path.GetFileName(file);
-                                        _logger.LogDebug("New subtitle path: {0}", newSubFilePath);
-
-                                        if (!System.IO.File.Exists(newSubFilePath))
-                                        {
-                                            try
-                                            {
-                                                System.IO.File.Copy(file, newSubFilePath);
-                                                _logger.LogDebug("Copied subtitle to: {0}", newSubFilePath);
-                                            }
-                                            catch (Exception ex)
-                                            {
-                                                _logger.LogError(ex, "Error copying subtitle file {0}", file);
-                                            }
-
-                                            _logger.LogDebug("Found unused subtitle, new file: {0}", newSubFilePath);
-                                            SubtitlesFixed++;
-                                        } else
-                                        {
-                                            _logger.LogDebug("new subtitle file already exists");
-                                        }
-                                    }
+                                    _logger.LogError(ex, "Error copying subtitle file {0}", file);
                                 }
                             }
                         }
                     }
                 }
+                ++CompletedCount;
+
+                // calc percentage (current / maximum) * 100
+                progress.Report((CompletedCount / MoviesFound) * 100);
             }
 
-            
             if (!_libraryManager.IsScanRunning)
             {
                 _libraryMonitor.Start();
             }
-
-            _logger.LogInformation("Number of new subtitles created: {0}", SubtitlesFixed); 
-
             return Task.CompletedTask;
         }
 
@@ -198,10 +148,12 @@ namespace Jellyfin.Plugin.SubtitleFixer
             if (input.EndsWith(extension))
             {
                 return input.Substring(0, input.LastIndexOf(extension));
-            } else
+            }
+            else
             {
                 return input;
             }
         }
+
     }
 }

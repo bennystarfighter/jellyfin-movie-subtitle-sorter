@@ -2,13 +2,6 @@ using MediaBrowser.Model.Plugins;
 
 namespace Jellyfin.Plugin.Template.Configuration
 {
-
-    public enum SomeOptions
-    {
-        OneOption,
-        AnotherOption
-    }
-
     public class PluginConfiguration : BasePluginConfiguration
     {
         // store configurable settings your plugin might need
