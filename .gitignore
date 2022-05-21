@@ -1,6 +1,4 @@
 bin/
 obj/
 .vs/
-.idea/
-artifacts
 debug-server/
