@@ -1,4 +1,4 @@
-# Jellyfin-movie-subtitle-sorter
+# Jellyfin movie-subtitle-sorter plugin
 
 This plugin will check all movie folders with a subfolder containing subtitle files.
 If it finds a subtitle file it will copy it to the same folder as the movie file with the movie filename and the subtitle filename combined to make sure jellyfin finds it when scanning the library.
