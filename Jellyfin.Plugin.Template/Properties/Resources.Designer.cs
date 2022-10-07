@@ -8,10 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace Jellyfin.Plugin.Template.Properties {
-    using System;
-    
-    
+namespace Jellyfin.Plugin.SubtitleFixer.Properties {
     /// <summary>
     ///   A strongly-typed resource class, for looking up localized strings, etc.
     /// </summary>

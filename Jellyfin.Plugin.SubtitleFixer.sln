@@ -4,12 +4,12 @@ VisualStudioVersion = 17.2.32516.85
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jellyfin.Plugin.SubtitleFixer", "Jellyfin.Plugin.Template\Jellyfin.Plugin.SubtitleFixer.csproj", "{D921B930-CF91-406F-ACBC-08914DCD0D34}"
 EndProject
-Project("{911E67C6-3D85-4FCE-B560-20A9C3E3FF48}") = "jellyfin", "debug-server\jellyfin_10.7.7\jellyfin.exe", "{7B0CD79A-AFF8-4F73-B145-125B9978348D}"
+Project("{911E67C6-3D85-4FCE-B560-20A9C3E3FF48}") = "jellyfin", "debug-server\jellyfin_10.8.1\jellyfin.exe", "{FF9DCB6A-81E2-42DC-ACE3-9FE1D2DC8B86}"
 	ProjectSection(DebuggerProjectSystem) = preProject
 		PortSupplier = 00000000-0000-0000-0000-000000000000
-		Executable = A:\dev\jellyfin-movie-subtitle-sorter\debug-server\jellyfin_10.8.0-beta3\jellyfin.exe
+		Executable = "A:\dev\jellyfin-movie-subtitle-sorter\debug-server\jellyfin_10.8.1\jellyfin.exe"
 		RemoteMachine = BENJAMIN-PC
-		StartingDirectory = A:\dev\jellyfin-movie-subtitle-sorter\debug-server\jellyfin_10.8.0-beta3
+		StartingDirectory = "A:\dev\jellyfin-movie-subtitle-sorter\debug-server\jellyfin_10.8.1\"
 		Environment = Default
 		LaunchingEngine = 00000000-0000-0000-0000-000000000000
 		UseLegacyDebugEngines = No
@@ -34,10 +34,10 @@ Global
 		{D921B930-CF91-406F-ACBC-08914DCD0D34}.Release|Any CPU.Build.0 = Release|Any CPU
 		{D921B930-CF91-406F-ACBC-08914DCD0D34}.Release|x64.ActiveCfg = Release|Any CPU
 		{D921B930-CF91-406F-ACBC-08914DCD0D34}.Release|x64.Build.0 = Release|Any CPU
-		{7B0CD79A-AFF8-4F73-B145-125B9978348D}.Debug|Any CPU.ActiveCfg = Release|x64
-		{7B0CD79A-AFF8-4F73-B145-125B9978348D}.Debug|x64.ActiveCfg = Release|x64
-		{7B0CD79A-AFF8-4F73-B145-125B9978348D}.Release|Any CPU.ActiveCfg = Release|x64
-		{7B0CD79A-AFF8-4F73-B145-125B9978348D}.Release|x64.ActiveCfg = Release|x64
+		{FF9DCB6A-81E2-42DC-ACE3-9FE1D2DC8B86}.Debug|Any CPU.ActiveCfg = Release
+		{FF9DCB6A-81E2-42DC-ACE3-9FE1D2DC8B86}.Debug|x64.ActiveCfg = Release
+		{FF9DCB6A-81E2-42DC-ACE3-9FE1D2DC8B86}.Release|Any CPU.ActiveCfg = Release
+		{FF9DCB6A-81E2-42DC-ACE3-9FE1D2DC8B86}.Release|x64.ActiveCfg = Release
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

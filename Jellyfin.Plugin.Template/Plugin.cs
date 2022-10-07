@@ -1,22 +1,23 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Emby.Naming.Common;
-using Jellyfin.Plugin.Template.Configuration;
+using Jellyfin.Data.Entities.Libraries;
+using Jellyfin.Data.Enums;
+using Jellyfin.Plugin.SubtitleFixer.Configuration;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
-using MediaBrowser.Controller.Library;
-using MediaBrowser.Controller.Providers;
 using MediaBrowser.Controller.Entities;
+using MediaBrowser.Controller.Library;
+using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.IO;
+using MediaBrowser.Model.Querying;
 using MediaBrowser.Model.Serialization;
 using MediaBrowser.Model.Tasks;
 using Microsoft.Extensions.Logging;
-using MediaBrowser.Model.Querying;
-using Jellyfin.Data.Enums;
 
 namespace Jellyfin.Plugin.SubtitleFixer
 {
@@ -47,12 +48,15 @@ namespace Jellyfin.Plugin.SubtitleFixer
         string IScheduledTask.Category { get { return "Library"; } }
 
         private readonly ILibraryMonitor _libraryMonitor;
+
         private readonly ILibraryManager _libraryManager;
-        private readonly ILoggerFactory _loggerFactory;
+
+        // private readonly ILoggerFactory _loggerFactory;
         private readonly ILogger<SubtitleFixer> _logger;
+
         private readonly IFileSystem _fileSystem;
-        private readonly IProviderManager _providerManager;
-        private readonly NamingOptions _namingOptions;
+        // private readonly IProviderManager _providerManager;
+        // private readonly NamingOptions _namingOptions;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="OrganizerScheduledTask"/> class.
@@ -62,39 +66,59 @@ namespace Jellyfin.Plugin.SubtitleFixer
             ILibraryMonitor libraryMonitor,
             ILibraryManager libraryManager,
             ILoggerFactory loggerFactory,
-            IFileSystem fileSystem,
-            IProviderManager providerManager)
+            IFileSystem fileSystem
+        )
         {
             _libraryMonitor = libraryMonitor;
             _libraryManager = libraryManager;
-            _loggerFactory = loggerFactory;
+            // _loggerFactory = loggerFactory;
             _logger = loggerFactory.CreateLogger<SubtitleFixer>();
             _fileSystem = fileSystem;
-            _providerManager = providerManager;
-            _namingOptions = new NamingOptions();
+            // _providerManager = providerManager;
+            // _namingOptions = new NamingOptions();
         }
 
         Task IScheduledTask.ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
         {
-            List<MediaBrowser.Controller.Entities.Movies.Movie> movies = _libraryManager.GetItemList(new InternalItemsQuery
+            List<VirtualFolderInfo> allVirtualFolders = _libraryManager.GetVirtualFolders();
+
+            // Run for movies
+            List<MediaBrowser.Controller.Entities.Movies.Movie> allMovies = _libraryManager.GetItemList(new InternalItemsQuery
             {
-                IncludeItemTypes = new[] { BaseItemKind.Movie },
-                IsVirtualItem = false,
-                OrderBy = new List<ValueTuple<string, SortOrder>>
+                IncludeItemTypes = new[] { BaseItemKind.Movie }, IsVirtualItem = false, OrderBy = new List<ValueTuple<string, SortOrder>> { new ValueTuple<string, SortOrder>(ItemSortBy.SortName, SortOrder.Ascending) }, Recursive = true,
+            }, false).Select(m => m as MediaBrowser.Controller.Entities.Movies.Movie).ToList();
+
+            int moviesFound = allMovies.Count;
+            int completedCount = 0;
+            _logger.LogInformation("Found [{0}] movies", moviesFound);
+
+            foreach (var movie in allMovies)
+            {
+                DirectoryInfo movieDir = System.IO.Directory.GetParent(movie.Path);
+                if (movieDir == null)
                 {
-                    new ValueTuple<string, SortOrder>(ItemSortBy.SortName, SortOrder.Ascending)
-                },
-                Recursive = true,
-                HasTmdbId = true
-            },false).Select(m => m as MediaBrowser.Controller.Entities.Movies.Movie).ToList();
+                    continue;
+                }
+                string movieParent = movieDir.FullName;
 
-            int MoviesFound = movies.Count;
-            int CompletedCount = 0;
-            _logger.LogInformation("Found [{0}] movies", MoviesFound);
+                // Check if movie is in root folder of movie library location.
+                bool isInRoot = false;
+                foreach (var virtualFolder in allVirtualFolders)
+                {
+                    foreach (var location in virtualFolder.Locations)
+                    {
+                        if (location == movieParent)
+                        {
+                            isInRoot = true;
+                        }
+                    }
+                }
+                if (isInRoot)
+                {
+                    continue;
+                }
+                // END
 
-
-            foreach (var movie in movies)
-            {
                 foreach (var subFolder in System.IO.Directory.GetDirectories(System.IO.Path.GetDirectoryName(movie.Path)))
                 {
                     foreach (var file in System.IO.Directory.GetFiles(subFolder))
@@ -116,26 +140,26 @@ namespace Jellyfin.Plugin.SubtitleFixer
                         }
                     }
                 }
-                ++CompletedCount;
+
+                ++completedCount;
 
                 // calc percentage (current / maximum) * 100
-                progress.Report((CompletedCount / MoviesFound) * 100);
+                progress.Report((completedCount / moviesFound) * 100);
             }
 
+            /*
             if (!_libraryManager.IsScanRunning)
             {
-                _libraryMonitor.Start();
+                _libraryManager.ValidateMediaLibrary();
             }
+            */
+
             return Task.CompletedTask;
         }
 
         IEnumerable<TaskTriggerInfo> IScheduledTask.GetDefaultTriggers()
         {
-            yield return new TaskTriggerInfo
-            {
-                Type = TaskTriggerInfo.TriggerInterval,
-                IntervalTicks = TimeSpan.FromHours(12).Ticks
-            };
+            yield return new TaskTriggerInfo { Type = TaskTriggerInfo.TriggerInterval, IntervalTicks = TimeSpan.FromHours(12).Ticks };
         }
 
         private bool IsPathAlreadyInMediaLibrary(string path, List<string> libraryFolderPaths)
@@ -154,6 +178,5 @@ namespace Jellyfin.Plugin.SubtitleFixer
                 return input;
             }
         }
-
     }
 }
