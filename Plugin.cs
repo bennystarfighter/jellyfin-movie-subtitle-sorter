@@ -1,20 +1,20 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Data.Enums;
-using Jellyfin.Extensions;
 using Jellyfin.Plugin.SubtitleFixer.Configuration;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Controller.Subtitles;
 using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Querying;
 using MediaBrowser.Model.Serialization;
-using MediaBrowser.Model.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.SubtitleFixer
@@ -26,8 +26,8 @@ namespace Jellyfin.Plugin.SubtitleFixer
         public override Guid Id => Guid.Parse("786e0827-ed4b-4cbc-870b-12c186f47894");
 
         public override string Description =>
-            "Looks through all movie libraries for subtitles hidden in subfolders and copies them with a working name.";
-
+            "Looks through all movie folders for subtitles hidden inside subfolders. If found it will try to link/copy them to the folder of the movie so Jellyfin discovers them properly.";
+        
         public Plugin(IApplicationPaths applicationPaths, IXmlSerializer xmlSerializer) : base(applicationPaths,
             xmlSerializer)
         {
@@ -37,19 +37,12 @@ namespace Jellyfin.Plugin.SubtitleFixer
         public static Plugin Instance { get; private set; }
     }
 
-    public class SubtitleFixer : IScheduledTask
+    public class SubtitleFixer : ILibraryPostScanTask
     {
-        string IScheduledTask.Name => "Run movie subtitle sorter.";
-        string IScheduledTask.Key => "SubtitleFixerAutoSort";
-
-        string IScheduledTask.Description =>
-            "Looks through all MOVIE libraries for subtitles hidden in subfolders and copies them with a working name.";
-
-        string IScheduledTask.Category => "Library";
-
         private readonly ILibraryMonitor _libraryMonitor;
-
         private readonly ILibraryManager _libraryManager;
+        private readonly ISubtitleManager _subtitleManager;
+        private readonly IMediaSourceManager _mediaSourceManager;
 
         // private readonly ILoggerFactory _loggerFactory;
         private readonly ILogger<SubtitleFixer> _logger;
@@ -67,20 +60,22 @@ namespace Jellyfin.Plugin.SubtitleFixer
             ILibraryMonitor libraryMonitor,
             ILibraryManager libraryManager,
             ILoggerFactory loggerFactory,
-            IFileSystem fileSystem
+            IFileSystem fileSystem,
+            ISubtitleManager subtitleManager,
+            IMediaSourceManager mediaSourceManager
         )
         {
             _libraryMonitor = libraryMonitor;
             _libraryManager = libraryManager;
-            // _loggerFactory = loggerFactory;
             _logger = loggerFactory.CreateLogger<SubtitleFixer>();
             _fileSystem = fileSystem;
-            // _providerManager = providerManager;
-            // _namingOptions = new NamingOptions();
+            _subtitleManager = subtitleManager;
+            _mediaSourceManager = mediaSourceManager;
         }
-
-        Task IScheduledTask.ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
+        
+        public Task Run(IProgress<double> progress, CancellationToken cancellationToken)
         {
+            _logger.LogInformation("Running Subtitle Fixer");
             var allVirtualFolders = _libraryManager.GetVirtualFolders();
 
             // Run for movies
@@ -97,10 +92,12 @@ namespace Jellyfin.Plugin.SubtitleFixer
 
             var moviesFound = allMovies.Count;
             var completedCount = 0;
-            _logger.LogInformation("Found [{0}] movies", moviesFound);
+            _logger.LogInformation("Found [{0}] eligible movies", moviesFound);
 
             foreach (var movie in allMovies)
             {
+                _logger.LogDebug("Checking movie: {0}", movie.Name);
+                _logger.LogDebug("Movie path: {0}", movie.Path);
                 if (string.IsNullOrEmpty(movie.Path))
                 {
                     continue;
@@ -134,86 +131,91 @@ namespace Jellyfin.Plugin.SubtitleFixer
                     continue;
                 }
 
-
+                bool hasNewSubtitle = false;
+                
                 var dirName = System.IO.Path.GetDirectoryName(movie.Path);
                 if (dirName != null)
                     // loop through subfolder inside movie folder
                     foreach (var subFolder in System.IO.Directory.GetDirectories(dirName))
                     {
                         // Check all files in subfolder
-                        foreach (var sourceFile in System.IO.Directory.GetFiles(subFolder))
+                        foreach (var potentialSubFile in System.IO.Directory.GetFiles(subFolder))
                         {
                             if (!new[] { ".ass", ".srt", ".ssa", ".sub", ".idx", ".vtt" }.Contains(System.IO.Path
-                                    .GetExtension(sourceFile).ToLower()))
+                                    .GetExtension(potentialSubFile).ToLower()))
                             {
                                 continue;
                             }
-
-                            if (!movie.SubtitleFiles.Contains(sourceFile))
-                            {
-                                movie.SubtitleFiles = movie.SubtitleFiles.Append(sourceFile).ToArray();
+                            
+                            // New method to try and get working later. This would remove the need for a symbolic link / copy of the subtitle file.
+                            // Cant get the adding of the subtitle filepath to the library entry working.
+                            /* 
+                            if (!movie.SubtitleFiles.Contains(potentialSubFile))
+                            {   
+                                movie.SubtitleFiles = movie.SubtitleFiles.Append(potentialSubFile).ToArray();
                                 movie.HasSubtitles = true;
                             }
+                            */
+                            
+                            _logger.LogDebug("Found eligible subtitle file: {0}", potentialSubFile);
 
-                            var updateCancellationToken = new CancellationToken();
-                            _libraryManager
-                                .UpdateItemAsync(movie, movie.GetParent(), ItemUpdateType.MetadataEdit, updateCancellationToken)
-                                .Wait(updateCancellationToken);
-
-                            /*
                             var newSubFilePath =
                                 RemoveExtensionFromPath(System.IO.Path.GetFullPath(movie.Path),
-                                    System.IO.Path.GetExtension(movie.Path)) + "." + System.IO.Path.GetFileName(sourceFile);
-
+                                    System.IO.Path.GetExtension(movie.Path)) + "." + System.IO.Path.GetFileName(potentialSubFile);
+                            
+                            
                             // Continue if file with same name already exists.
                             if (System.IO.File.Exists(newSubFilePath)) continue;
 
+                            hasNewSubtitle = true;
+                            
                             // Copy subtitle to movie folder
                             try
                             {
-                                System.IO.File.Copy(sourceFile, newSubFilePath);
+                                System.IO.File.CreateSymbolicLink(newSubFilePath, potentialSubFile);
                             }
                             catch (Exception ex)
                             {
-                                _logger.LogError(ex, "Error copying subtitle file {}", sourceFile);
+                                // Try copy file if symbolic link creation fails
+                                if (ex.GetType().IsAssignableFrom(typeof(IOException)))
+                                {
+                                    try
+                                    {
+                                        System.IO.File.Copy(potentialSubFile, newSubFilePath);  
+                                    }
+                                    catch (Exception e)
+                                    {
+                                        _logger.LogError(ex, "Error copying subtitle file {0}. Error: {1}", potentialSubFile, e.ToString());
+                                    }   
+                                }
+                                else
+                                {
+                                    _logger.LogError(ex, "Error creating subtitle symbolic link {0}. Error: {1}", potentialSubFile, ex.ToString());
+                                }
+                                
                             }
-                            */
+                            
+                            // Trigger a scan on this movie again so the new subtitle files will be discovered
+                            
                         }
                     }
 
+                if (hasNewSubtitle)
+                {
+                    movie.ChangedExternally();
+                }
+                
                 ++completedCount;
 
                 // calc percentage (current / maximum) * 100
                 progress.Report((completedCount / moviesFound) * 100);
+                
             }
-
-            if (!_libraryManager.IsScanRunning)
-            {
-                var libraryScanCancellationToken = new CancellationToken();
-                IProgress<double> scanProgress = new Progress<double>();
-                _libraryManager.ValidateMediaLibrary(scanProgress, libraryScanCancellationToken);
-            }
-
+            
+            progress.Report(100);
             return Task.CompletedTask;
         }
-
-        IEnumerable<TaskTriggerInfo> IScheduledTask.GetDefaultTriggers()
-        {
-            var info = new TaskTriggerInfo
-            {
-                Type = TaskTriggerInfo.TriggerInterval,
-                IntervalTicks = TimeSpan.FromHours(12).Ticks
-            };
-            yield return info;
-        }
-
-        /*
-        private bool IsPathAlreadyInMediaLibrary(string path, List<string> libraryFolderPaths)
-        {
-            return libraryFolderPaths.Any(i => string.Equals(i, path, StringComparison.Ordinal) || _fileSystem.ContainsSubPath(i, path));
-        }
-        */
-
+        
         private static string RemoveExtensionFromPath(string input, string extension)
         {
             return input.EndsWith(extension) ? input[..input.LastIndexOf(extension, StringComparison.Ordinal)] : input;
