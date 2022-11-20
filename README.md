@@ -1,3 +1,8 @@
+# THIS IS NOT MAINTAINED ANYMORE
+
+Please move to the new and improved plugin: [jellyfin-subtitle-sorter](https://github.com/bennystarfighter/jellyfin-subtitle-sorter)
+
+<br><br><br>
 # Jellyfin movie-subtitle-sorter plugin
 
 ## Info
